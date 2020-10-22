@@ -181,7 +181,9 @@ volumes:
 É preciso editar o arquivo docker-compose.yml substituindo as partes já citadas anteriormente que se encontram em:
 
 Linha 8 = `<dockerhub-user>/nginx:devops`
+
 Linha 18 = `image: <dockerhub-user>/redis:devops`
+
 Linha 37 = `image: <dockerhub-user>/node:devops`
 
 Após alterado, subindo utilizando `up -d`, subiremos a stack toda.
