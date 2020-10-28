@@ -204,3 +204,38 @@ Acessando a máquina através do IP na porta 80, podemos olhar os logs através 
 $ docker-compose down
 ```
 
+# Aula 6 - Rancher - Single Node
+
+### Instalar Rancher - Single Node
+
+Nesse exercício iremos instalar o Rancher 2.2.5 versão single node, onde o rancher e seus componentes ficam em um único container.
+
+Ao entrar no host responsável por hospedar o Rancher server, verificamos se há algum container e seu status. Após, faremos a instalação do Rancher:
+
+```sh
+    $ docker ps -a
+    $ docker run -d --name rancher --restart=unless-stopped -v /opt/rancher:/var/lib/rancher  -p 80:80 -p 443:443 rancher/rancher:v2.4.3
+```
+
+Foi criado um volume de persistência `-v /opt/rancher:/var/` para que, em caso de desligamento, queda ou quebra do serviço, as informações persistam e possam ser acessadas pela nova máquina que irá subir.
+Com o Rancher rodando, adicionou a entrada de DNS para o IP de cada máquina.
+
+```sh
+    $ rancher.<dominio> = IP do host A
+```
+
+# Aula 7 - Kubernetes
+
+### Criar cluster Kubernetes
+
+Nesse exercício foi criado um cluster Kubernetes, onde foi instalado o kubectl no host A, que será usado para interagir com o cluster. O cluster deve ser criado pelo painel de administração do rancher, que pode ser acessado pelo endereço pré-configurado anteriormente. A criação do cluster é facil, no painel global, clicar em "Add Cluster" > "From existing nodes (custom)" > nomear o cluster > configurar o cluster como preferir > Next > Copiar comando gerado, como o demonstrado a seguir:
+
+Após fazer a configuração (lembrando de selecionar as caixas "etcd", "control plane" e "worker"), o Rancher irá exibir um comando de docker run, para adicionar os host's. Adicionar o host B e host C.
+
+O comando a seguir é semelhante ao que será gerado no painel do Rancher.
+
+```sh
+    $ docker run -d --privileged --restart=unless-stopped --net=host -v /etc/kubernetes:/etc/kubernetes -v /var/run:/var/run rancher/rancher-agent:v2.4.3 --server https://rancher.dev-ops-ninja.com --token 8xf5r2ttrvvqcxdhwsbx9cvb7s9wgwdmgfbmzr4mt7smjbg4jgj292 --ca-checksum 61ac25d1c389b26c5c9acd98a1c167dbfb394c6c1c3019d855901704d8bae282 --node-name k8s-1 --etcd --controlplane --worker
+```
+
+Esse cluster terá 3 nós e essa configuração deve ser feita em cada um dos nós, lembrando apenas de mudar o `--node-name` para cada máquina.
