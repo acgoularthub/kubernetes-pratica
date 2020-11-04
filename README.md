@@ -258,7 +258,7 @@ Será necessário instalar o kubectl, que é a CLI do kubernetes, no host que ho
     $ sudo apt-get install -y kubectl
 ```
 
-É necessário inserir as credenciais do rancher no kubectl
+É necessário inserir as credenciais do rancher no kubectl, as credenciais podem ser encontradas na interface de controle do rancher, é preciso selecionar o cluster no qual está trabalhando e clicar em "kubeconfig File".
 
 ```sh
     $ vi ~/.kube/config
@@ -285,3 +285,128 @@ Para configurar o DNS pelo qual o Traefik irá responder, no arquivo ui.yml, é 
     $ cd treinamento-kubernetes/exercicios/
     $ kubectl apply -f ui.yml
 ```
+
+# Aula 10 - Volume
+
+### Volumes
+
+Para que os dados trabalhados no cluster persistam e possam ser trabalhados não importando qual maquina o pegar é utilizado um sistema de volume, onde usa-se o endereço de onde serão salvas e alteradas informações dentro do cluster.
+Para gerenciar a conexão dos pods a essa persistencia, será usado o rANCHER Longhorn.
+Para instalar ele é facil, pode ser feito pela interface do usuário do Rancher, faz parte dos serviços Rancher.
+
+Na prática dessa aula, será criado o volume de persistencia no cluster, para isso foi criado o `.yml` a seguir:
+
+```yml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mysql
+  clusterIP: None
+
+
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mariadb:10.4
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: changeme
+        ports:
+        - containerPort: 3306
+          name: mysql
+        
+        volumeMounts:
+        - name: mysql-volume
+          mountPath: /var/lib/mysql
+        
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rancher"
+      
+      volumes:
+      - name: mysql-volume
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+```
+
+Obs. O `.yml` foi criado usando senhas e endereços genéricos.
+
+#### Executando
+
+```sh
+$ kubectl apply -f mariadb-longhorn-volume.yml
+```
+
+# Aula 11 - LOG
+
+### Graylog - LOG
+
+Para centralizar e facilitar o acesso aos logs provenientes do cluster é utilizado o GrayLog, onde todos os logs geradodos por todos os containers se centralizam, facilitando o trabalho de análise de segurança. Todos os logs gerados podem ser salvos para pesquisa posterior, além de ser aplicado a outras funcionalidades. Os logs também pode ser acessados pelos Rancher, mas as facilidades ofertadas pelos serviços do GrayLog fazem com que valha a pena seu uso.
+
+O template utilizado no `.yml` de instalação do GrayLog pode ser encontrado [AQUI](https://github.com/acgoularthub/kubernetes-pratica/blob/main/praticaAula11/graylog.yml)
+
+  - Lembrando que todos os templates utilizados foram criados pelo idelizador do curso, ja devidamente citado no inicio deste documento.
+
+No arquivo, é necessário se atentar à necessidade de mudança dos seguintes parâmetros:
+
+Linha 264 - value: http://graylog.rancher.<dominino>/api
+Linha 340 - host: graylog.rancher.<dominio>
+
+Onde será necessárioq eu vc substitua pelo domínio criado para seu cluster.
+
+Substituir o {user}, pelo nome do aluno. Após substituir, aplicar e entrar no Graylog para configurar.
+
+```sh
+  $ kubectl apply -f graylog.yml
+```
+
+Após criado, acessar o Rancher, procurar o namespace criado para o graylog e adicioná-lo no projeto default.
+
+O graylog usa o fluent como agente de coleta de logs, mogo como banco de dados e o elasticsearch para salvar os logs.
+
+Será necessário criar um input do tipo GELF UDP, global. O imput será responsável por receber os tráfegos do fluentd.
+Em manager Extractors vai em `get estarted` > `Load Message` > `Select EXTRATOR TYPE <kubernetes>` > tipo `JSON` >> `Key prefix <nome, no caso foi usado 'k8s-'>` > `extractor type <nome, o mesmo que key prefix>` > Create Extrator.
+
+A partir deste ponto o cluster já está sendo monitorado e o graylog ja está armazendo os logs gerados pelos pods/containers. O Greylog é uma ferramenta opensource e consegue trabalhar integrando diversos serviços, inclusive o LDAP. Existem outras ferramentas que podem substituí-lo mas, segundo o autor, o graylog trabalha muito bem em ambientes de produção e é uma excelente opção para ser usada.
